@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChipSoft HiX - Hospital Information System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        hix: {
+                            blue: '#003366',       /* Royal Dutch Blue */
+                            blueDark: '#002244',
+                            blueLight: '#E8F0F8',
+                            orange: '#FF4F00',     /* Dutch Bright Orange */
+                            orangeDark: '#D94300',
+                            orangeLight: '#FFF0E6',
+                            headerBg: '#0A2540',
+                            cardBorder: '#CBD5E1'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom EHR Scrollbars & Utility Styles */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        .hix-nav-active {
+            background-color: #FF4F00 !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 4px rgba(255, 79, 0, 0.25);
+        }
+    </style>
+</head>
+<body class="h-full font-sans text-slate-800 bg-slate-100 flex flex-col antialiased overflow-hidden select-none">
+
+    <header class="bg-hix-headerBg text-white h-14 px-4 sm:px-6 flex items-center justify-between shrink-0 z-30 shadow-md border-b border-slate-700">
+        <!-- System Title & Dutch Coat of Arms Emblem -->
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="switchModule('prescriptions')">
+                <!-- Dutch National Coat of Arms / Emblem SVG -->
+                <div class="bg-white p-1 rounded flex items-center justify-center border border-amber-400/50 shadow-xs">
+                    <svg class="w-7 h-7 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L15 5H18V8L21 11L18 14V17H15L12 20L9 17H6V14L3 11L6 8V5H9L12 2Z" fill="#1E3A8A"/>
+                        <path d="M12 5L13.5 8H16.5V11L18 12.5L16.5 14V17H13.5L12 18.5L10.5 17H7.5V14L6 12.5L7.5 11V8H10.5L12 5Z" fill="#F59E0B"/>
+                        <circle cx="12" cy="12" r="2.5" fill="#FFFFFF"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-extrabold text-white tracking-wider text-base">ChipSoft <span class="text-hix-orange">HiX</span></span>
+                        <span class="bg-hix-orange text-white text-[10px] font-bold px-1.5 py-0.2 rounded uppercase">v6.3 EHR</span>
+                    </div>
+                    <span class="text-[10px] text-slate-300 tracking-wide block leading-none font-medium">Rijksoverheid Zorgnetwerk • Amsterdam UMC</span>
+                </div>
+            </div>
+
+            <!-- Hospital Facility Badge -->
+            <div class="hidden lg:flex items-center gap-2 text-xs bg-slate-800/80 text-slate-200 px-3 py-1 rounded-full border border-slate-700">
+                <i data-lucide="building-2" class="w-3.5 h-3.5 text-hix-orange"></i>
+                <span class="font-bold">Amsterdam UMC - Location AMC</span>
+                <span class="text-slate-500">|</span>
+                <span class="text-slate-300">Department of Cardiology & Surgery</span>
+            </div>
+        </div>
+
+        <!-- Global Quick Actions & User Context -->
+        <div class="flex items-center space-x-3">
+            <!-- XML Export Button -->
+            <button onclick="exportHixXml()" class="bg-hix-orange hover:bg-hix-orangeDark text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-sm">
+                <i data-lucide="file-down" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Export HL7/FHIR XML</span>
+            </button>
+
+            <!-- User Info Badge -->
+            <div class="flex items-center gap-2.5 pl-3 border-l border-slate-700">
+                <div class="w-8 h-8 rounded-full bg-hix-blue text-amber-300 font-extrabold text-xs flex items-center justify-center border border-amber-400">
+                    DR
+                </div>
+                <div class="text-left text-xs leading-tight hidden xl:block">
+                    <div class="font-bold text-white">Dr. H. van Rijn, MD</div>
+                    <div class="text-[10px] text-slate-400">BIG-register: 89012491</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="bg-white border-b border-slate-300 px-4 sm:px-6 py-2.5 shrink-0 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+        <div class="flex items-center gap-3">
+            <span class="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Active Patient:</span>
+            <select id="patientSelect" onchange="switchPatient()" class="bg-slate-50 border border-slate-300 font-bold text-xs text-hix-blue rounded-lg p-1.5 pr-8 focus:ring-2 focus:ring-hix-blue focus:outline-none cursor-pointer">
+                <option value="p1">Willem van Dijk (BSN: 992810421) - Ward 3B, Bed 04</option>
+                <option value="p2">Anouk de Jong (BSN: 881204912) - Ward 2A, Bed 12</option>
+                <option value="p3">Jan-Willem Bakker (BSN: 772195034) - OR Suite 02</option>
+            </select>
+        </div>
+
+        <!-- Dynamic Clinical Vitals & Alert Banner -->
+        <div class="flex items-center gap-4 text-xs font-medium text-slate-700">
+            <div><span class="text-slate-400">DOB:</span> <strong id="patDob" class="text-hix-blue font-mono">14-03-1962 (64 yrs)</strong></div>
+            <div class="hidden sm:block"><span class="text-slate-400">Gender:</span> <strong id="patGender" class="text-hix-blue">Male</strong></div>
+            <div class="hidden md:block"><span class="text-slate-400">Attending:</span> <strong id="patPhysician" class="text-hix-blue">Prof. Dr. E. de Wit</strong></div>
+            <div id="patAllergyBadge" class="bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-200 text-[11px] font-bold flex items-center gap-1">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-red-600"></i>
+                <span id="patAllergies">Penicillin (Severe Anaphylaxis)</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-1 overflow-hidden flex flex-col md:flex-row">
+
+        <!-- Sidebar Navigation -->
+        <aside class="w-full md:w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800">
+            <div class="p-3 border-b border-slate-800">
+                <div class="relative">
+                    <input type="text" id="searchInput" onkeyup="filterCurrentModule()" placeholder="Filter current view..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-hix-orange">
+                    <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5"></i>
+                </div>
+            </div>
+
+            <nav class="p-2 space-y-1 flex-1 overflow-y-auto">
+                <button id="nav-prescriptions" onclick="switchModule('prescriptions')" class="hix-nav-active w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="pill" class="w-4 h-4"></i>
+                        <span>Prescriptions & Medication</span>
+                    </div>
+                    <span id="badgeMeds" class="bg-white/20 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">3</span>
+                </button>
+
+                <button id="nav-traceability" onclick="switchModule('traceability')" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-slate-800 text-slate-300 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                        <span>Care Traceability & Vitals</span>
+                    </div>
+                    <span id="badgeVitals" class="bg-slate-800 text-slate-400 text-[10px] font-bold px-1.5 py-0.2 rounded-full">Stable</span>
+                </button>
+
+                <button id="nav-reports" onclick="switchModule('reports')" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-slate-800 text-slate-300 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                        <span>Medical Reports & Notes</span>
+                    </div>
+                    <span id="badgeReports" class="bg-slate-800 text-slate-400 text-[10px] font-bold px-1.5 py-0.2 rounded-full">4</span>
+                </button>
+
+                <button id="nav-operating" onclick="switchModule('operating')" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-slate-800 text-slate-300 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="scissors" class="w-4 h-4"></i>
+                        <span>Operating Room / OK-Complex</span>
+                    </div>
+                    <span id="badgeOR" class="bg-amber-500/20 text-amber-300 text-[10px] font-bold px-1.5 py-0.2 rounded-full">Scheduled</span>
+                </button>
+            </nav>
+
+            <!-- Bottom Hospital System Status -->
+            <div class="p-3 bg-slate-950/80 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
+                <div class="flex justify-between items-center">
+                    <span>LSP / Nictiz Sync:</span>
+                    <span class="text-emerald-400 font-bold flex items-center gap-1"><i data-lucide="wifi" class="w-3 h-3"></i> Active</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Pharmacy System:</span>
+                    <span class="text-emerald-400 font-bold">G-Standaard v2026</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Dynamic Content Workspace -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100 flex flex-col space-y-4">
+
+            <!-- MODULE 1: PRESCRIPTIONS & MEDICATION MANAGEMENT -->
+            <section id="mod-prescriptions" class="space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                    <div>
+                        <h2 class="text-base font-extrabold text-hix-blue flex items-center gap-2">
+                            <i data-lucide="pill" class="w-5 h-5 text-hix-orange"></i>
+                            Active Medication Orders & e-Prescribing
+                        </h2>
+                        <p class="text-xs text-slate-500">G-Standaard database integrated medication schedule, MAR administration, and outpatient prescriptions.</p>
+                    </div>
+                    <button onclick="openNewPrescriptionModal()" class="bg-hix-orange hover:bg-hix-orangeDark text-white text-xs font-extrabold px-4 py-2 rounded-lg flex items-center gap-1.5 transition-all shadow-sm">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>New Prescription</span>
+                    </button>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-600 text-[10px] font-extrabold uppercase border-b border-slate-200">
+                                    <th class="p-3">Medication & Form</th>
+                                    <th class="p-3">Dosage & Route</th>
+                                    <th class="p-3">Frequency</th>
+                                    <th class="p-3">Start Date</th>
+                                    <th class="p-3">Prescriber</th>
+                                    <th class="p-3">Fulfillment Status</th>
+                                    <th class="p-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="medsTableBody" class="divide-y divide-slate-100 font-medium">
+                                <!-- Dynamic JS Injection -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MODULE 2: CARE TRACEABILITY & VITALS -->
+            <section id="mod-traceability" class="space-y-4 hidden">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                    <h2 class="text-base font-extrabold text-hix-blue flex items-center gap-2">
+                        <i data-lucide="activity" class="w-5 h-5 text-hix-orange"></i>
+                        Care Traceability & Clinical Vitals Timeline
+                    </h2>
+                    <p class="text-xs text-slate-500">Real-time bedside vitals telemetry, NEWS2 risk score, pain index, and nursing interventions.</p>
+                </div>
+
+                <!-- Quick Vitals Cards Grid -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-2xs">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Heart Rate</div>
+                        <div class="text-xl font-extrabold text-hix-blue mt-1 font-mono" id="vitalHR">78 <span class="text-xs font-normal text-slate-500">BPM</span></div>
+                        <div class="text-[10px] text-emerald-600 font-bold mt-1">Normal Sinus Rhythm</div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-2xs">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Blood Pressure</div>
+                        <div class="text-xl font-extrabold text-hix-blue mt-1 font-mono" id="vitalBP">128/82 <span class="text-xs font-normal text-slate-500">mmHg</span></div>
+                        <div class="text-[10px] text-slate-500 font-bold mt-1">MAP: 97 mmHg</div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-2xs">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SpO2 Saturation</div>
+                        <div class="text-xl font-extrabold text-hix-blue mt-1 font-mono" id="vitalSpO2">98% <span class="text-xs font-normal text-slate-500">(Room air)</span></div>
+                        <div class="text-[10px] text-emerald-600 font-bold mt-1">Adequate Oxygenation</div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-2xs">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">NEWS2 Risk Score</div>
+                        <div class="text-xl font-extrabold text-emerald-600 mt-1 font-mono" id="vitalNEWS">1 <span class="text-xs font-normal text-slate-500">/ 20</span></div>
+                        <div class="text-[10px] text-emerald-600 font-bold mt-1">Low Clinical Risk</div>
+                    </div>
+                </div>
+
+                <!-- Traceability Step Timeline -->
+                <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+                    <h3 class="text-xs font-extrabold text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-2">Care Pathway & Nursing Interventions Log</h3>
+                    <div id="vitalsTimeline" class="space-y-4 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-slate-200">
+                        <!-- Dynamic JS Injection -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- MODULE 3: MEDICAL REPORTS & CLINICAL NOTES -->
+            <section id="mod-reports" class="space-y-4 hidden">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-extrabold text-hix-blue flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-5 h-5 text-hix-orange"></i>
+                            Clinical Reports, Consultations & Findings
+                        </h2>
+                        <p class="text-xs text-slate-500">Radiology PACS reports, laboratory findings, specialist consultations, and discharge letters.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Reports List -->
+                    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                        <div class="p-3 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-700">Report Index</div>
+                        <div id="reportsList" class="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+                            <!-- Dynamic JS Injection -->
+                        </div>
+                    </div>
+
+                    <!-- Selected Report Preview Pane -->
+                    <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-5 shadow-2xs flex flex-col space-y-3" id="reportDetailPane">
+                        <div class="border-b border-slate-200 pb-3 flex justify-between items-start">
+                            <div>
+                                <h3 id="reportTitle" class="text-sm font-extrabold text-hix-blue">Select a report from the left pane</h3>
+                                <div id="reportMeta" class="text-xs text-slate-400 mt-0.5">Author info & timestamp</div>
+                            </div>
+                            <span id="reportStatusBadge" class="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-300">N/A</span>
+                        </div>
+                        <div id="reportContent" class="text-xs text-slate-700 leading-relaxed font-sans whitespace-pre-line space-y-2 flex-1">
+                            Click on any clinical report to inspect detailed findings, pathology interpretations, or physician summaries.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MODULE 4: OPERATING ROOM / OK-COMPLEX -->
+            <section id="mod-operating" class="space-y-4 hidden">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                    <h2 class="text-base font-extrabold text-hix-blue flex items-center gap-2">
+                        <i data-lucide="scissors" class="w-5 h-5 text-hix-orange"></i>
+                        Operating Room / OK-Complex Management
+                    </h2>
+                    <p class="text-xs text-slate-500">Surgical scheduling, WHO surgical safety checklist, anesthesia protocol, and intraoperative tracking.</p>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+                    <div class="border-b border-slate-200 pb-3 flex flex-wrap justify-between items-center gap-2">
+                        <div>
+                            <h3 id="orProcedureName" class="text-sm font-extrabold text-hix-blue">Coronary Artery Bypass Grafting (CABG) x3</h3>
+                            <div class="text-xs text-slate-500">Suite: <strong class="text-slate-800">OK Suite 02</strong> • Anesthesia: <strong class="text-slate-800">General Endotracheal</strong></div>
+                        </div>
+                        <span id="orStatusBadge" class="bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold px-3 py-1 rounded-full">
+                            Scheduled - Pre-Op Phase
+                        </span>
+                    </div>
+
+                    <!-- Surgical Checklist Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-2">
+                            <div class="font-bold text-xs text-hix-blue flex items-center justify-between">
+                                <span>1. Sign-In (Pre-Anesthesia)</span>
+                                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+                            </div>
+                            <ul class="text-[11px] text-slate-600 space-y-1">
+                                <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> Patient identity confirmed</li>
+                                <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> Surgical site marked</li>
+                                <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> Anesthesia safety check done</li>
+                                <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> Allergy status verified</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-2">
+                            <div class="font-bold text-xs text-hix-blue flex items-center justify-between">
+                                <span>2. Time-Out (Pre-Incision)</span>
+                                <i data-lucide="clock" class="w-4 h-4 text-amber-500"></i>
+                            </div>
+                            <ul class="text-[11px] text-slate-600 space-y-1">
+                                <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> Surgical team introduced</li>
+                                <li class="flex items-center gap-1.5"><i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> Antibiotic prophylaxis given</li>
+                                <li class="flex items-center gap-1.5"><i data-lucide="minus" class="w-3 h-3 text-slate-400"></i> Anticipated blood loss review</li>
+                                <li class="flex items-center gap-1.5"><i data-lucide="minus" class="w-3 h-3 text-slate-400"></i> Imaging displayed in OR</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-2">
+                            <div class="font-bold text-xs text-hix-blue flex items-center justify-between">
+                                <span>3. Sign-Out (Post-Procedure)</span>
+                                <i data-lucide="circle-dashed" class="w-4 h-4 text-slate-400"></i>
+                            </div>
+                            <ul class="text-[11px] text-slate-500 space-y-1">
+                                <li class="flex items-center gap-1.5"><i data-lucide="minus" class="w-3 h-3 text-slate-400"></i> Instrument & sponge count</li>
+                                <li class="flex items-center gap-1.5"><i data-lucide="minus" class="w-3 h-3 text-slate-400"></i> Specimen labeling verified</li>
+                                <li class="flex items-center gap-1.5"><i data-lucide="minus" class="w-3 h-3 text-slate-400"></i> Key recovery concerns noted</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Surgical Team List -->
+                    <div class="pt-3 border-t border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        <div><span class="text-slate-400 block">Primary Surgeon:</span> <strong class="text-slate-800">Prof. Dr. E. de Wit</strong></div>
+                        <div><span class="text-slate-400 block">Anesthesiologist:</span> <strong class="text-slate-800">Dr. M. van Dijk</strong></div>
+                        <div><span class="text-slate-400 block">Scrub Nurse:</span> <strong class="text-slate-800">S. Visser, RN</strong></div>
+                        <div><span class="text-slate-400 block">Perfusionist:</span> <strong class="text-slate-800">K. Jansen, CCP</strong></div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- New Prescription Modal -->
+    <div id="prescriptionModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h3 class="font-extrabold text-hix-blue text-sm flex items-center gap-2">
+                    <i data-lucide="pill" class="w-4 h-4 text-hix-orange"></i>
+                    New e-Prescription (G-Standaard)
+                </h3>
+                <button onclick="closeNewPrescriptionModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <form onsubmit="savePrescription(event)" class="space-y-3">
+                <div>
+                    <label class="block font-bold text-xs text-slate-700 mb-1">Medication Name</label>
+                    <input type="text" id="newMedName" required placeholder="e.g. Metoprolol succinate 50mg" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-hix-blue focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-xs text-slate-700 mb-1">Dosage & Route</label>
+                        <input type="text" id="newMedDosage" required placeholder="e.g. 50mg Oral Tablet" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-hix-blue focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-xs text-slate-700 mb-1">Frequency</label>
+                        <input type="text" id="newMedFreq" required placeholder="e.g. Once daily (1x/day)" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-hix-blue focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+                    <button type="button" onclick="closeNewPrescriptionModal()" class="px-4 py-2 border border-slate-300 text-xs font-bold text-slate-600 rounded-lg hover:bg-slate-100">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-hix-orange hover:bg-hix-orangeDark text-white text-xs font-extrabold rounded-lg shadow-xs">Authorize Prescription</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-hix-headerBg text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs transform translate-y-10 opacity-0 transition-all pointer-events-none z-50 border border-slate-700">
+        <i data-lucide="check-circle2" class="w-5 h-5 text-emerald-400 shrink-0"></i>
+        <span id="toastMsg" class="font-medium">Action completed successfully.</span>
+    </div>
+
+    <script>
+        let currentPatientId = 'p1';
+        let currentModule = 'prescriptions';
+
+        // Patient Dataset (Strictly English UI content with Dutch hospital location names)
+        const patientData = {
+            p1: {
+                name: "Willem van Dijk",
+                bsn: "992810421",
+                dob: "14-03-1962 (64 yrs)",
+                gender: "Male",
+                physician: "Prof. Dr. E. de Wit",
+                allergies: "Penicillin (Anaphylaxis)",
+                meds: [
+                    { name: "Ticagrelor (Brilique)", dosage: "90mg Oral", freq: "Twice daily (2x/day)", start: "20-09-2026", prescriber: "Dr. H. van Rijn", status: "Dispensed" },
+                    { name: "Metoprolol Succinate", dosage: "50mg Oral", freq: "Once daily (1x/day)", start: "18-09-2026", prescriber: "Dr. H. van Rijn", status: "Active" },
+                    { name: "Atorvastatin", dosage: "40mg Oral", freq: "Once daily at bedtime", start: "15-09-2026", prescriber: "Prof. Dr. E. de Wit", status: "Active" }
+                ],
+                vitals: { hr: "78 BPM", bp: "128/82 mmHg", spo2: "98%", news: "1" },
+                timeline: [
+                    { time: "14:30", text: "12-lead ECG completed. Sinus rhythm confirmed without acute ST elevation.", author: "S. Visser, RN" },
+                    { time: "11:15", text: "Bedside arterial blood gas (ABG) drawn. PaO2 94 mmHg, pH 7.41.", author: "Dr. H. van Rijn" },
+                    { time: "08:00", text: "Morning medication round administered as per MAR schedule.", author: "M. de Boer, RN" }
+                ],
+                reports: [
+                    { id: "r1", title: "Coronary Angiography (CAG) Report", date: "20-09-2026", type: "Cardiology", author: "Prof. Dr. E. de Wit", text: "FINDINGS:\n- Left Main: Unremarkable\n- LAD: Severe 85% stenosis in mid-segment\n- RCA: Diffuse 70% disease\nRECOMMENDATION: Surgical revascularization (CABG) scheduled." },
+                    { id: "r2", title: "Chest X-Ray (AP View)", date: "19-09-2026", type: "Radiology", author: "Dr. P. Hermans", text: "No pulmonary edema. Normal cardiac silhouette size. Clear costophrenic angles." }
+                ],
+                or: { procedure: "Coronary Artery Bypass Grafting (CABG) x3", status: "Scheduled - Pre-Op Phase", room: "OK Suite 02" }
+            },
+            p2: {
+                name: "Anouk de Jong",
+                bsn: "881204912",
+                dob: "28-09-1988 (37 yrs)",
+                gender: "Female",
+                physician: "Dr. K. Lindeman",
+                allergies: "No Known Drug Allergies (NKDA)",
+                meds: [
+                    { name: "Ibuprofen", dosage: "400mg Oral", freq: "Three times daily (3x/day)", start: "21-09-2026", prescriber: "Dr. K. Lindeman", status: "Active" },
+                    { name: "Paracetamol", dosage: "1000mg Oral", freq: "Four times daily as needed", start: "21-09-2026", prescriber: "Dr. K. Lindeman", status: "Active" }
+                ],
+                vitals: { hr: "68 BPM", bp: "118/74 mmHg", spo2: "99%", news: "0" },
+                timeline: [
+                    { time: "10:00", text: "Post-arthroscopy knee dressing refreshed. Minimal serosanguinous drainage.", author: "A. van den Berg, RN" },
+                    { time: "07:30", text: "Physiotherapy gait assessment completed. Patient mobilising with crutches.", author: "T. Bakker, PT" }
+                ],
+                reports: [
+                    { id: "r3", title: "Diagnostic Knee Arthroscopy Note", date: "21-09-2026", type: "Orthopedics", author: "Dr. K. Lindeman", text: "FINDINGS:\nPartial medial meniscus tear repaired. Articular cartilage well maintained." }
+                ],
+                or: { procedure: "Right Knee Arthroscopic Meniscectomy", status: "Completed - Recovery Ward", room: "OK Suite 04" }
+            },
+            p3: {
+                name: "Jan-Willem Bakker",
+                bsn: "772195034",
+                dob: "02-11-1954 (71 yrs)",
+                gender: "Male",
+                physician: "Dr. S. Meijer",
+                allergies: "NSAIDs (Bronchospasm)",
+                meds: [
+                    { name: "Lisinopril", dosage: "10mg Oral", freq: "Once daily (1x/day)", start: "10-09-2026", prescriber: "Dr. S. Meijer", status: "Active" }
+                ],
+                vitals: { hr: "82 BPM", bp: "135/88 mmHg", spo2: "96%", news: "1" },
+                timeline: [
+                    { time: "13:00", text: "Transferred to OR holding area. Identity and consent re-verified.", author: "J. Willems, RN" }
+                ],
+                reports: [
+                    { id: "r4", title: "Pre-Operative Anesthesia Evaluation", date: "21-09-2026", type: "Anesthesiology", author: "Dr. M. van Dijk", text: "ASA Physical Status Class II. Airway Mallampati Class I. Cleared for general anesthesia." }
+                ],
+                or: { procedure: "Laparoscopic Inguinal Hernia Repair", status: "In Progress - Anesthesia Induction", room: "OK Suite 01" }
+            }
+        };
+
+        function switchModule(modName) {
+            currentModule = modName;
+            const modules = ['prescriptions', 'traceability', 'reports', 'operating'];
+            modules.forEach(m => {
+                document.getElementById(`mod-${m}`).classList.add('hidden');
+                const btn = document.getElementById(`nav-${m}`);
+                btn.className = "w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-slate-800 text-slate-300 flex items-center justify-between transition-all";
+            });
+
+            document.getElementById(`mod-${modName}`).classList.remove('hidden');
+            document.getElementById(`nav-${modName}`).className = "hix-nav-active w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all";
+
+            renderCurrentModule();
+            lucide.createIcons();
+        }
+
+        function switchPatient() {
+            currentPatientId = document.getElementById('patientSelect').value;
+            const pat = patientData[currentPatientId];
+
+            document.getElementById('patDob').innerText = pat.dob;
+            document.getElementById('patGender').innerText = pat.gender;
+            document.getElementById('patPhysician').innerText = pat.physician;
+            document.getElementById('patAllergies').innerText = pat.allergies;
+
+            renderCurrentModule();
+        }
+
+        function renderCurrentModule() {
+            const pat = patientData[currentPatientId];
+
+            if(currentModule === 'prescriptions') {
+                const tbody = document.getElementById('medsTableBody');
+                tbody.innerHTML = pat.meds.map(m => `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="p-3 font-bold text-hix-blue">${m.name}</td>
+                        <td class="p-3 text-slate-700">${m.dosage}</td>
+                        <td class="p-3 font-mono text-slate-600">${m.freq}</td>
+                        <td class="p-3 text-slate-500 font-mono text-[11px]">${m.start}</td>
+                        <td class="p-3 text-slate-700">${m.prescriber}</td>
+                        <td class="p-3">
+                            <span class="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                ${m.status}
+                            </span>
+                        </td>
+                        <td class="p-3 text-right">
+                            <button onclick="showToast('Administered MAR log recorded.')" class="text-hix-orange font-bold hover:underline text-[11px]">Administer</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } else if(currentModule === 'traceability') {
+                document.getElementById('vitalHR').innerText = pat.vitals.hr;
+                document.getElementById('vitalBP').innerText = pat.vitals.bp;
+                document.getElementById('vitalSpO2').innerText = pat.vitals.spo2;
+                document.getElementById('vitalNEWS').innerText = pat.vitals.news;
+
+                const timeline = document.getElementById('vitalsTimeline');
+                timeline.innerHTML = pat.timeline.map(t => `
+                    <div class="relative pl-7">
+                        <div class="absolute left-2 top-1.5 w-3 h-3 rounded-full bg-hix-orange border-2 border-white shadow-xs"></div>
+                        <div class="text-[11px] font-bold text-slate-400 font-mono">${t.time}</div>
+                        <div class="text-xs font-semibold text-slate-800 mt-0.5">${t.text}</div>
+                        <div class="text-[10px] text-slate-500 italic mt-0.5">Logged by ${t.author}</div>
+                    </div>
+                `).join('');
+            } else if(currentModule === 'reports') {
+                const list = document.getElementById('reportsList');
+                list.innerHTML = pat.reports.map((r, i) => `
+                    <div onclick="selectReport('${r.id}')" class="p-3 cursor-pointer hover:bg-slate-50 transition-colors ${i === 0 ? 'bg-hix-blueLight/50 border-l-4 border-hix-blue' : ''}">
+                        <div class="font-bold text-xs text-hix-blue">${r.title}</div>
+                        <div class="flex justify-between text-[10px] text-slate-400 mt-1 font-mono">
+                            <span>${r.date}</span>
+                            <span>${r.type}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+                if(pat.reports.length > 0) {
+                    selectReport(pat.reports[0].id);
+                }
+            } else if(currentModule === 'operating') {
+                document.getElementById('orProcedureName').innerText = pat.or.procedure;
+                document.getElementById('orStatusBadge').innerText = pat.or.status;
+            }
+
+            lucide.createIcons();
+        }
+
+        function selectReport(reportId) {
+            const pat = patientData[currentPatientId];
+            const rep = pat.reports.find(r => r.id === reportId) || pat.reports[0];
+
+            if(rep) {
+                document.getElementById('reportTitle').innerText = rep.title;
+                document.getElementById('reportMeta').innerText = `Author: ${rep.author} | Date: ${rep.date} | Speciality: ${rep.type}`;
+                document.getElementById('reportContent').innerText = rep.text;
+                document.getElementById('reportStatusBadge').innerText = "Final Signed";
+            }
+        }
+
+        function filterCurrentModule() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            if(currentModule === 'prescriptions') {
+                const rows = document.querySelectorAll('#medsTableBody tr');
+                rows.forEach(r => {
+                    r.style.display = r.innerText.toLowerCase().includes(query) ? '' : 'none';
+                });
+            }
+        }
+
+        function openNewPrescriptionModal() {
+            document.getElementById('prescriptionModal').classList.remove('hidden');
+        }
+
+        function closeNewPrescriptionModal() {
+            document.getElementById('prescriptionModal').classList.add('hidden');
+        }
+
+        function savePrescription(e) {
+            e.preventDefault();
+            const name = document.getElementById('newMedName').value;
+            const dosage = document.getElementById('newMedDosage').value;
+            const freq = document.getElementById('newMedFreq').value;
+
+            patientData[currentPatientId].meds.unshift({
+                name: name,
+                dosage: dosage,
+                freq: freq,
+                start: new Date().toLocaleDateString('en-GB'),
+                prescriber: "Dr. H. van Rijn",
+                status: "Active"
+            });
+
+            closeNewPrescriptionModal();
+            renderCurrentModule();
+            showToast("New e-Prescription authorized & transmitted to pharmacy.");
+        }
+
+        function exportHixXml() {
+            const pat = patientData[currentPatientId];
+            const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<ChipSoftHiXExchange xmlns="http://www.chipsoft.nl/hix/fhir/v6" version="6.3">
+  <Header>
+    <Hospital>Amsterdam UMC - Location AMC</Hospital>
+    <ExportTimestamp>${new Date().toISOString()}</ExportTimestamp>
+    <PhysicianBIG>89012491</PhysicianBIG>
+  </Header>
+  <Patient>
+    <BSN>${pat.bsn}</BSN>
+    <Name>${escapeXml(pat.name)}</Name>
+    <DOB>${pat.dob}</DOB>
+    <Gender>${pat.gender}</Gender>
+    <Allergies>${escapeXml(pat.allergies)}</Allergies>
+  </Patient>
+  <Medications>
+    ${pat.meds.map(m => `
+    <Medication>
+      <Name>${escapeXml(m.name)}</Name>
+      <Dosage>${escapeXml(m.dosage)}</Dosage>
+      <Frequency>${escapeXml(m.freq)}</Frequency>
+      <Status>${m.status}</Status>
+    </Medication>`).join('')}
+  </Medications>
+</ChipSoftHiXExchange>`;
+
+            const blob = new Blob([xmlContent], { type: 'text/xml;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+
+            link.setAttribute("href", url);
+            link.setAttribute("download", `hix_export_bsn_${pat.bsn}.xml`);
+            link.style.visibility = 'hidden';
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast(`HL7/FHIR XML exported for ${pat.name}`);
+        }
+
+        function escapeXml(unsafe) {
+            return unsafe.replace(/[<>&'"]/g, function (c) {
+                switch (c) {
+                    case '<': return '&lt;';
+                    case '>': return '&gt;';
+                    case '&': return '&amp;';
+                    case '\'': return '&apos;';
+                    case '"': return '&quot;';
+                }
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+            }, 2800);
+        }
+
+        window.onload = function() {
+            switchModule('prescriptions');
+        };
+    </script>
+</body>
+</html>
